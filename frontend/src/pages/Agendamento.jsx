@@ -1,39 +1,53 @@
 import { useState } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { ArrowLeft, CalendarCheck } from 'lucide-react';
 
 export default function Agendamento() {
-  const [nome, setNome] = useState('');
-  const [prioridade, setPrioridade] = useState('0');
-  const [loading, setLoading] = useState(false);
+  const { medicoId } = useParams();
+  const { state } = useLocation();
+  const { currentUser, userData } = useAuth();
   const navigate = useNavigate();
+
+  const vagasLivres = state?.vagasLivres || [];
+  const medicoNome = state?.medicoNome || 'Médico';
+  const especialidade = state?.especialidade || '';
+
+  const [horario, setHorario] = useState(vagasLivres[0] || '');
+  const [loading, setLoading] = useState(false);
+
+  const hoje = new Date().toISOString().split('T')[0];
+  const hojeFormatado = new Date().toLocaleDateString('pt-BR', {
+    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+  });
 
   const handleAgendar = async (e) => {
     e.preventDefault();
-    if (!nome) return;
+    if (!horario) return;
     setLoading(true);
-    
-    // Gera um código de senha único
-    const nivelTexto = prioridade === '0' ? 'NORM' : prioridade === '1' ? 'PREF' : 'URG';
-    const numAleatorio = Math.floor(100 + Math.random() * 900);
-    const senha = `${nivelTexto}-${numAleatorio}`;
+
+    const nivelTexto = ['NORM', 'PREF', 'URG', 'EMER'][userData?.prioridade ?? 0];
+    const senha = `${nivelTexto}-${Math.floor(100 + Math.random() * 900)}`;
 
     try {
-      await addDoc(collection(db, 'pacientes'), {
-        nome,
-        prioridade: parseInt(prioridade),
+      await addDoc(collection(db, 'consultas'), {
+        pacienteId: currentUser.uid,
+        pacienteNome: userData?.nome || 'Paciente',
+        pacientePrioridade: userData?.prioridade ?? 0,
+        medicoId,
+        medicoNome,
+        data: hoje,
+        horario,
+        status: 'agendado',
         senha,
-        status: 'aguardando', // pode ser: 'aguardando', 'chamado'
-        criadoEm: serverTimestamp() // Importante para o Python saber a ordem de chegada
+        criadoEm: serverTimestamp(),
       });
-      
-      alert(`Consulta marcada! Guarde sua senha: ${senha}`);
-      navigate('/acompanhar');
-    } catch (error) {
-      console.error('Erro:', error);
-      alert('Erro ao marcar consulta.');
+      navigate('/acompanhar', { state: { senha, horario, medicoNome } });
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao agendar. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -42,44 +56,52 @@ export default function Agendamento() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
       <div className="glass-panel max-w-md w-full p-8 rounded-2xl relative">
-        <Link to="/" className="absolute top-4 left-4 text-gray-400 hover:text-white">
+        <Link to="/paciente" className="absolute top-4 left-4 text-gray-400 hover:text-white">
           <ArrowLeft size={24} />
         </Link>
-        <h2 className="text-3xl font-bold text-center mb-6 text-blue-400">Marcar Consulta</h2>
-        
+
+        <div className="text-center mb-6">
+          <CalendarCheck className="mx-auto text-blue-400 mb-3" size={40} />
+          <h2 className="text-2xl font-bold text-white">Confirmar Agendamento</h2>
+          <p className="text-blue-300 font-semibold mt-1">{medicoNome}</p>
+          {especialidade && <p className="text-gray-400 text-sm">{especialidade}</p>}
+        </div>
+
+        <div className="bg-slate-800/60 rounded-xl p-4 mb-6 text-sm text-gray-300">
+          <p>📅 <span className="font-semibold text-white capitalize">{hojeFormatado}</span></p>
+          <p className="mt-1">👤 Paciente: <span className="text-white font-semibold">{userData?.nome}</span></p>
+        </div>
+
         <form onSubmit={handleAgendar} className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Nome Completo</label>
-            <input 
-              type="text" 
-              required
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              className="w-full p-3 rounded-lg bg-slate-800 border border-slate-600 focus:border-blue-500 outline-none transition"
-              placeholder="Digite seu nome..."
-            />
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Horário Disponível
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {vagasLivres.map((slot) => (
+                <button
+                  key={slot}
+                  type="button"
+                  onClick={() => setHorario(slot)}
+                  className={`py-2 rounded-lg text-sm font-bold transition border ${
+                    horario === slot
+                      ? 'bg-blue-600 border-blue-400 text-white'
+                      : 'bg-slate-800 border-slate-600 text-gray-300 hover:border-blue-500'
+                  }`}
+                >
+                  {slot}
+                </button>
+              ))}
+            </div>
           </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Classificação de Urgência</label>
-            <select 
-              value={prioridade}
-              onChange={(e) => setPrioridade(e.target.value)}
-              className="w-full p-3 rounded-lg bg-slate-800 border border-slate-600 focus:border-blue-500 outline-none transition text-white"
-            >
-              <option value="0">Atendimento Normal</option>
-              <option value="1">Preferencial (Idoso/Gestante)</option>
-              <option value="2">Urgência Médica</option>
-              <option value="3">Emergência Máxima</option>
-            </select>
-          </div>
-          
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-transform active:scale-95 disabled:opacity-50"
+
+          <button
+            type="submit"
+            disabled={loading || !horario}
+            className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? 'Processando...' : 'Gerar Senha e Entrar na Fila'}
+            <CalendarCheck size={20} />
+            {loading ? 'Agendando...' : 'Confirmar Consulta'}
           </button>
         </form>
       </div>
