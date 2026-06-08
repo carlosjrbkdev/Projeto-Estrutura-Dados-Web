@@ -2,12 +2,12 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBnWLC-vkqFbD31MZtR-ZRvwZKd8D9JUtU",
-  authDomain: "clinicaweb-d5fe6.firebaseapp.com",
-  projectId: "clinicaweb-d5fe6",
-  storageBucket: "clinicaweb-d5fe6.firebasestorage.app",
-  messagingSenderId: "974563227469",
-  appId: "1:974563227469:web:be194540b741a8773fe904"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
