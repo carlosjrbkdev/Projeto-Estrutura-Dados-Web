@@ -144,9 +144,13 @@ def status():
 
 
 if __name__ == '__main__':
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    
     print("=" * 50)
     print("  Motor de Estruturas de Dados - ClinicaWeb")
     print("  Fila (FIFO) + Heap (Prioridade) + Pilha")
-    print("  Rodando em: http://localhost:5000")
+    print(f"  Rodando em: http://0.0.0.0:{port}")
     print("=" * 50)
-    app.run(port=5000, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=debug)

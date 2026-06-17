@@ -121,7 +121,7 @@ export default function PainelMedico() {
       });
     } catch (err) {
       console.error(err);
-      alert(`Erro ao adicionar na fila: ${err.message}\n\nVerifique se o servidor Python está rodando em http://localhost:5000`);
+      alert(`Erro ao adicionar na fila: ${err.message}\n\nVerifique se o servidor Python está rodando em https://lavish-blessing-production-b5ca.up.railway.app`);
     } finally {
       setLoading('');
     }
