@@ -4,7 +4,13 @@ from estruturas import Fila, Pilha, Heap
 import time
 
 app = Flask(__name__)
-CORS(app)
+
+# Configurar CORS de forma mais explícita
+CORS(app, 
+     origins=["*"],
+     allow_headers=["*"],
+     methods=["GET", "POST", "OPTIONS"],
+     supports_credentials=True)
 
 # Heap e Fila em memória (persistem enquanto o servidor está rodando)
 _heap_global = Heap()
