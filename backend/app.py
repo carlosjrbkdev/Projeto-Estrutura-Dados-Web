@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from estruturas import Fila, Pilha, Heap
+import time
 
 app = Flask(__name__)
 CORS(app)
@@ -17,22 +18,48 @@ def adicionar_na_fila():
     - Prioridade > 0 → Heap (Max-Heap por prioridade, desempate por tempo de chegada)
     - Prioridade == 0 → Fila FIFO
     """
-    paciente = request.json
-    if not paciente or 'id' not in paciente:
-        return jsonify({"erro": "Dados inválidos"}), 400
+    try:
+        paciente = request.json
+        if not paciente or 'id' not in paciente:
+            return jsonify({"erro": "Dados inválidos: faltam campos obrigatórios"}), 400
 
-    prioridade = paciente.get('prioridade', 0)
-    tempo = paciente.get('criadoEm', 0)
+        # Validações e valores padrão
+        prioridade = paciente.get('prioridade', 0)
+        if not isinstance(prioridade, (int, float)) or prioridade < 0:
+            prioridade = 0
+        
+        tempo = paciente.get('criadoEm', 0)
+        if not isinstance(tempo, (int, float)) or tempo == 0:
+            tempo = int(time.time() * 1000)  # Timestamp em ms
+        
+        nome = paciente.get('nome', 'Paciente Desconhecido')
+        if not nome or not isinstance(nome, str):
+            nome = 'Paciente Desconhecido'
 
-    if prioridade > 0:
-        _heap_global.insert(paciente, prioridade, tempo)
-    else:
-        _fila_global.enqueue(paciente)
+        # Garante que o paciente tem os dados necessários
+        paciente_limpo = {
+            'id': paciente.get('id'),
+            'nome': nome,
+            'prioridade': prioridade,
+            'criadoEm': tempo
+        }
 
-    # Registra na pilha de histórico para eventual desfazer
-    _pilha_historico.push({'acao': 'adicionar', 'paciente': paciente})
+        if prioridade > 0:
+            _heap_global.insert(paciente_limpo, prioridade, tempo)
+        else:
+            _fila_global.enqueue(paciente_limpo)
 
-    return jsonify({"status": "ok", "mensagem": f"{paciente.get('nome')} adicionado à fila."})
+        # Registra na pilha de histórico para eventual desfazer
+        _pilha_historico.push({'acao': 'adicionar', 'paciente': paciente_limpo})
+
+        return jsonify({
+            "status": "ok", 
+            "mensagem": f"{nome} adicionado à fila com prioridade {prioridade}."
+        }), 200
+    
+    except Exception as e:
+        print(f"[ERRO] em /adicionar_na_fila: {str(e)}")
+        return jsonify({"erro": f"Erro interno do servidor: {str(e)}"}), 500
 
 
 @app.route('/calcular_proximo', methods=['POST'])
@@ -45,40 +72,58 @@ def calcular_proximo():
     Também aceita uma lista de pacientes via POST para reconstruir
     as estruturas antes de calcular (usado pelo frontend).
     """
-    body = request.json or {}
-    pacientes = body.get('pacientes', [])
+    try:
+        body = request.json or {}
+        pacientes = body.get('pacientes', [])
 
-    # Se vieram pacientes na requisição, reconstrói as estruturas do zero
-    if pacientes:
-        heap_temp = Heap()
-        fila_temp = Fila()
-        for p in pacientes:
-            tempo = p.get('criadoEm', 0)
-            if p.get('prioridade', 0) > 0:
-                heap_temp.insert(p, p['prioridade'], tempo)
-            else:
-                fila_temp.enqueue(p)
+        # Se vieram pacientes na requisição, reconstrói as estruturas do zero
+        if pacientes:
+            heap_temp = Heap()
+            fila_temp = Fila()
+            for p in pacientes:
+                if not isinstance(p, dict) or 'id' not in p:
+                    continue
+                
+                tempo = p.get('criadoEm', 0)
+                if not isinstance(tempo, (int, float)) or tempo == 0:
+                    tempo = int(time.time() * 1000)
+                
+                prioridade = p.get('prioridade', 0)
+                if not isinstance(prioridade, (int, float)) or prioridade < 0:
+                    prioridade = 0
+                
+                if prioridade > 0:
+                    heap_temp.insert(p, prioridade, tempo)
+                else:
+                    fila_temp.enqueue(p)
 
+            proximo = None
+            if not heap_temp.is_empty():
+                proximo = heap_temp.extract_max()
+            elif not fila_temp.is_empty():
+                proximo = fila_temp.dequeue()
+
+            if proximo is None:
+                return jsonify({"erro": "Nenhum paciente na fila"}), 404
+
+            return jsonify({"proximo": proximo}), 200
+
+        # Caso contrário usa as estruturas em memória
         proximo = None
-        if not heap_temp.is_empty():
-            proximo = heap_temp.extract_max()
-        elif not fila_temp.is_empty():
-            proximo = fila_temp.dequeue()
+        if not _heap_global.is_empty():
+            proximo = _heap_global.extract_max()
+        elif not _fila_global.is_empty():
+            proximo = _fila_global.dequeue()
 
-        return jsonify({"proximo": proximo})
+        if proximo is None:
+            return jsonify({"erro": "Fila vazia"}), 404
 
-    # Caso contrário usa as estruturas em memória
-    proximo = None
-    if not _heap_global.is_empty():
-        proximo = _heap_global.extract_max()
-    elif not _fila_global.is_empty():
-        proximo = _fila_global.dequeue()
-
-    if proximo is None:
-        return jsonify({"erro": "Fila vazia"}), 404
-
-    _pilha_historico.push({'acao': 'chamar', 'paciente': proximo})
-    return jsonify({"proximo": proximo})
+        _pilha_historico.push({'acao': 'chamar', 'paciente': proximo})
+        return jsonify({"proximo": proximo}), 200
+    
+    except Exception as e:
+        print(f"[ERRO] em /calcular_proximo: {str(e)}")
+        return jsonify({"erro": f"Erro ao calcular próximo: {str(e)}"}), 500
 
 
 @app.route('/status', methods=['GET'])
