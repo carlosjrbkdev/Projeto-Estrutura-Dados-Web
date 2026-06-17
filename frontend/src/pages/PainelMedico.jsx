@@ -104,7 +104,7 @@ export default function PainelMedico() {
         criadoEm: consulta.criadoEm?.toMillis?.() || Date.now()
       };
 
-      const response = await fetch('http://localhost:5000/adicionar_na_fila', {
+      const response = await fetch('https://lavish-blessing-production-b5ca.up.railway.app/adicionar_na_fila', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -161,7 +161,7 @@ export default function PainelMedico() {
         criadoEm: p.chegouEm?.toMillis?.() || p.criadoEm?.toMillis?.() || Date.now()
       }));
 
-      const response = await fetch('http://localhost:5000/calcular_proximo', {
+      const response = await fetch('https://lavish-blessing-production-b5ca.up.railway.app/calcular_proximo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pacientes: pacientesFormatados })
