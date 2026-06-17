@@ -5,31 +5,44 @@ import os
 
 app = Flask(__name__)
 
-# Middleware customizado para CORS (executa antes de tudo)
+# Middleware customizado para CORS - executa ANTES de tudo
 @app.before_request
 def handle_cors():
     """Handler para todas as requisições CORS"""
-    # Adicionar headers CORS para todas as respostas
     if request.method == "OPTIONS":
-        response = make_response("", 204)
+        response = make_response("OK", 200)
         response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        response.headers["Access-Control-Max-Age"] = "3600"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+        response.headers["Access-Control-Max-Age"] = "86400"
         return response
 
 @app.after_request
 def after_request(response):
-    """Adicionar headers CORS em todas as respostas"""
+    """Adicionar headers CORS em TODAS as respostas"""
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+    response.headers["Access-Control-Max-Age"] = "86400"
     return response
 
 # Heap e Fila em memória (persistem enquanto o servidor está rodando)
 _heap_global = Heap()
 _fila_global = Fila()
 _pilha_historico = Pilha()  # Para desfazer ações
+
+# Adicionar rotas OPTIONS explícitas para cada endpoint
+@app.route('/adicionar_na_fila', methods=['OPTIONS'])
+def options_adicionar():
+    return "", 200
+
+@app.route('/calcular_proximo', methods=['OPTIONS'])
+def options_calcular():
+    return "", 200
+
+@app.route('/status', methods=['OPTIONS'])
+def options_status():
+    return "", 200
 
 @app.route('/adicionar_na_fila', methods=['POST'])
 def adicionar_na_fila():
