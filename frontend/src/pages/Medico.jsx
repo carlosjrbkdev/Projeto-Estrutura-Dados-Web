@@ -41,7 +41,7 @@ export default function Medico() {
 
     try {
       // 1. Envia a lista desordenada para o motor em Python
-      const response = await fetch('http://localhost:5000/calcular_proximo', {
+      const response = await fetch('https://lavish-blessing-production-b5ca.up.railway.app/calcular_proximo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pacientes: pacientesNaEspera })

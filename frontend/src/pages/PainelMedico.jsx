@@ -90,24 +90,38 @@ export default function PainelMedico() {
   const handleChegou = async (consulta) => {
     setLoading(`chegou-${consulta.id}`);
     try {
-      // Chama Python para inserir no Heap/Fila
-      await fetch('http://localhost:5000/adicionar_na_fila', {
+      // Validação de dados antes de enviar
+      if (!consulta.pacienteNome || consulta.pacienteNome.trim() === '') {
+        alert('Erro: Nome do paciente não está preenchido. Verifique os dados da consulta.');
+        setLoading('');
+        return;
+      }
+
+      const payload = {
+        id: consulta.id,
+        nome: consulta.pacienteNome.trim(),
+        prioridade: typeof consulta.pacientePrioridade === 'number' ? consulta.pacientePrioridade : 0,
+        criadoEm: consulta.criadoEm?.toMillis?.() || Date.now()
+      };
+
+      const response = await fetch('https://lavish-blessing-production-b5ca.up.railway.app/adicionar_na_fila', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: consulta.id,
-          nome: consulta.pacienteNome,
-          prioridade: consulta.pacientePrioridade,
-          criadoEm: consulta.criadoEm?.toMillis?.() || Date.now()
-        })
+        body: JSON.stringify(payload)
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.erro || 'Erro desconhecido no servidor');
+      }
+
       await updateDoc(doc(db, 'consultas', consulta.id), {
         status: 'na_fila',
         chegouEm: serverTimestamp()
       });
     } catch (err) {
       console.error(err);
-      alert('Erro ao adicionar na fila. Verifique se o servidor Python está rodando.');
+      alert(`Erro ao adicionar na fila: ${err.message}\n\nVerifique se o servidor Python está rodando em http://localhost:5000`);
     } finally {
       setLoading('');
     }
@@ -140,19 +154,24 @@ export default function PainelMedico() {
     if (naFila.length === 0) return;
     setLoading('chamar');
     try {
-      const response = await fetch('http://localhost:5000/calcular_proximo', {
+      const pacientesFormatados = naFila.map(p => ({
+        id: p.id,
+        nome: p.pacienteNome || 'Paciente Desconhecido',
+        prioridade: typeof p.pacientePrioridade === 'number' ? p.pacientePrioridade : 0,
+        criadoEm: p.chegouEm?.toMillis?.() || p.criadoEm?.toMillis?.() || Date.now()
+      }));
+
+      const response = await fetch('https://lavish-blessing-production-b5ca.up.railway.app/calcular_proximo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pacientes: naFila.map(p => ({
-            id: p.id,
-            nome: p.pacienteNome,
-            prioridade: p.pacientePrioridade,
-            criadoEm: p.chegouEm?.toMillis?.() || p.criadoEm?.toMillis?.() || 0
-          }))
-        })
+        body: JSON.stringify({ pacientes: pacientesFormatados })
       });
-      if (!response.ok) throw new Error('Erro no Python');
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.erro || 'Erro desconhecido');
+      }
+
       const data = await response.json();
       if (data.proximo) {
         await updateDoc(doc(db, 'consultas', data.proximo.id), {
@@ -162,7 +181,7 @@ export default function PainelMedico() {
       }
     } catch (err) {
       console.error(err);
-      alert('Erro. Verifique se o servidor Python está rodando na porta 5000.');
+      alert(`Erro ao chamar próximo: ${err.message}\n\nVerifique se o servidor Python está rodando na porta 5000.`);
     } finally {
       setLoading('');
     }
