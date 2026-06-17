@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from estruturas import Fila, Pilha, Heap
 import time
+import os
 
 app = Flask(__name__)
 
@@ -10,7 +11,17 @@ CORS(app,
      origins=["*"],
      allow_headers=["*"],
      methods=["GET", "POST", "OPTIONS"],
-     supports_credentials=True)
+     supports_credentials=False)
+
+# Handler para preflight requests (OPTIONS)
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = jsonify({"status": "ok"})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+        response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        return response, 200
 
 # Heap e Fila em memória (persistem enquanto o servidor está rodando)
 _heap_global = Heap()
