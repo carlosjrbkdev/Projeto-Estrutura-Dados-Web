@@ -1,27 +1,30 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, request, jsonify, make_response
 from estruturas import Fila, Pilha, Heap
 import time
 import os
 
 app = Flask(__name__)
 
-# Configurar CORS de forma mais explícita
-CORS(app, 
-     origins=["*"],
-     allow_headers=["*"],
-     methods=["GET", "POST", "OPTIONS"],
-     supports_credentials=False)
-
-# Handler para preflight requests (OPTIONS)
+# Middleware customizado para CORS (executa antes de tudo)
 @app.before_request
-def handle_preflight():
+def handle_cors():
+    """Handler para todas as requisições CORS"""
+    # Adicionar headers CORS para todas as respostas
     if request.method == "OPTIONS":
-        response = jsonify({"status": "ok"})
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
-        response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        return response, 200
+        response = make_response("", 204)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Max-Age"] = "3600"
+        return response
+
+@app.after_request
+def after_request(response):
+    """Adicionar headers CORS em todas as respostas"""
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
 
 # Heap e Fila em memória (persistem enquanto o servidor está rodando)
 _heap_global = Heap()
