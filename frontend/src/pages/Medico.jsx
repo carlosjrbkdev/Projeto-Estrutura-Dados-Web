@@ -62,7 +62,7 @@ export default function Medico() {
       }
     } catch (error) {
       console.error('Erro ao chamar:', error);
-      alert('Certifique-se de que o servidor Python (app.py) está rodando localmente na porta 5000.');
+      alert('Certifique-se de que o servidor Python está rodando no Railway: https://lavish-blessing-production-b5ca.up.railway.app');
     } finally {
       setLoading(false);
     }

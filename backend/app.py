@@ -1,15 +1,48 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, request, jsonify, make_response
 from estruturas import Fila, Pilha, Heap
 import time
+import os
 
 app = Flask(__name__)
-CORS(app)
+
+# Middleware customizado para CORS - executa ANTES de tudo
+@app.before_request
+def handle_cors():
+    """Handler para todas as requisições CORS"""
+    if request.method == "OPTIONS":
+        response = make_response("OK", 200)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+        response.headers["Access-Control-Max-Age"] = "86400"
+        return response
+
+@app.after_request
+def after_request(response):
+    """Adicionar headers CORS em TODAS as respostas"""
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+    response.headers["Access-Control-Max-Age"] = "86400"
+    return response
 
 # Heap e Fila em memória (persistem enquanto o servidor está rodando)
 _heap_global = Heap()
 _fila_global = Fila()
 _pilha_historico = Pilha()  # Para desfazer ações
+
+# Adicionar rotas OPTIONS explícitas para cada endpoint
+@app.route('/adicionar_na_fila', methods=['OPTIONS'])
+def options_adicionar():
+    return "", 200
+
+@app.route('/calcular_proximo', methods=['OPTIONS'])
+def options_calcular():
+    return "", 200
+
+@app.route('/status', methods=['OPTIONS'])
+def options_status():
+    return "", 200
 
 @app.route('/adicionar_na_fila', methods=['POST'])
 def adicionar_na_fila():
@@ -138,9 +171,13 @@ def status():
 
 
 if __name__ == '__main__':
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    
     print("=" * 50)
     print("  Motor de Estruturas de Dados - ClinicaWeb")
     print("  Fila (FIFO) + Heap (Prioridade) + Pilha")
-    print("  Rodando em: http://localhost:5000")
+    print(f"  Rodando em: http://0.0.0.0:{port}")
     print("=" * 50)
-    app.run(port=5000, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=debug)
